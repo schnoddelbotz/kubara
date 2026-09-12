@@ -36,6 +36,14 @@
       "matchStrings": [
         "// renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+) registryUrl=(?<registryUrl>\\S+)\\s+(?:const\\s+)?\\w+\\s*=\\s*[\"'](?<currentValue>[^\"']+)[\"']"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Update terraform version in Dockerfile",
+      "fileMatch": ["(^|/)Dockerfile$", "(^|/)Dockerfile\\.[a-zA-Z0-9_-]+$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[a-z-]+?))?\\s+ARG \\w+_VERSION=(?<currentValue>[^\\s]+)"
+      ]
     }
   ],
   "packageRules": [
