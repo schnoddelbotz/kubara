@@ -19,6 +19,7 @@ func NewCatalogCommand() *cli.Command {
 			NewCatalogList(),
 			NewCatalogPackage(),
 			NewCatalogUnpackage(),
+			NewCatalogInfo(),
 		},
 	}
 
