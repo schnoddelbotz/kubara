@@ -1,12 +1,15 @@
 package catalog
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"sort"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -15,6 +18,7 @@ type LoadOptions struct {
 	BootstrapCatalog string
 	Catalogs         []string
 	Overwrite        bool
+	MergeServices    bool
 }
 
 func Load(options LoadOptions) (Catalog, error) {
@@ -43,14 +47,72 @@ func Load(options LoadOptions) (Catalog, error) {
 		}
 
 		for name, def := range external.Services {
-			if _, exists := merged.Services[name]; exists && !options.Overwrite {
-				return Catalog{}, fmt.Errorf("service definition %q already exists in another catalog", name)
+			// if options.MergeServices {
+			_, exists := merged.Services[name]
+			merged.Services[name], err = mergeServiceDefinitions(exists, merged.Services[name], def)
+			if err != nil {
+				return merged, err
 			}
-			merged.Services[name] = def
+			// continue
+			// }
+			// if _, exists := merged.Services[name]; exists && !options.Overwrite {
+			// 	return Catalog{}, fmt.Errorf("service definition %q already exists in another catalog", name)
+			// }
+			// merged.Services[name] = def
 		}
 	}
 
-	return merged, nil
+	return merged, err
+}
+
+func mergeServiceDefinitions(exists bool, dst, src ServiceDefinition) (ServiceDefinition, error) {
+	var err error
+	// dst does not exist = no merge, no overwrite
+	if !exists {
+		return src, err
+	}
+	// dst has nil cs, use src cs
+	if dst.Spec.ConfigSchema == nil && src.Spec.ConfigSchema != nil {
+		dst.Spec.ConfigSchema = src.Spec.ConfigSchema
+		return dst, err
+	}
+	// dst and src have cs, must merge
+	dst.Spec.ConfigSchema, err = mergeJSONSchemaProps(dst.Spec.ConfigSchema, src.Spec.ConfigSchema)
+	return dst, err
+}
+
+func mergeJSONSchemaProps(dst, src *apiextensionsv1.JSONSchemaProps) (*apiextensionsv1.JSONSchemaProps, error) {
+	if dst == nil && src == nil {
+		return nil, nil
+	}
+	if dst == nil {
+		return src.DeepCopy(), nil
+	}
+	if src == nil {
+		return dst.DeepCopy(), nil
+	}
+
+	dstBytes, err := json.Marshal(dst)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal dst schema: %w", err)
+	}
+
+	srcBytes, err := json.Marshal(src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal src schema: %w", err)
+	}
+
+	mergedBytes, err := jsonpatch.MergePatch(dstBytes, srcBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge json patch: %w", err)
+	}
+
+	var result apiextensionsv1.JSONSchemaProps
+	if err := json.Unmarshal(mergedBytes, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal merged schema: %w", err)
+	}
+
+	return &result, nil
 }
 
 func loadCatalogSource(reference string) (Catalog, error) {

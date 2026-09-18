@@ -13,6 +13,7 @@ func ResolveLoadOptions(cwd, bootstrapCatalog string, catalogs []string, overwri
 		BootstrapCatalog: bootstrapCatalog,
 		Catalogs:         append([]string(nil), catalogs...),
 		Overwrite:        overwrite,
+		MergeServices:    true, // FIXME
 	}
 	if _, err := ResolveSources(options); err != nil {
 		return LoadOptions{}, err
