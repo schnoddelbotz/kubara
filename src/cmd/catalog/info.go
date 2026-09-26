@@ -1,9 +1,11 @@
 package catalog
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"os"
 
 	cat "github.com/kubara-io/kubara/internal/catalog"
@@ -14,9 +16,9 @@ import (
 func NewCatalogInfo() *cli.Command {
 	cmd := &cli.Command{
 		Name:        "info",
-		Usage:       "Extracts basic information from Catalog.yaml (spec.version, metadata.name)",
+		Usage:       "Extracts basic information from Catalog.yaml",
 		UsageText:   "kubara catalog info CATALOG_FIELD",
-		Description: "Extracts given field from Catalog.yaml. Run this command from a catalog root that already contains Catalog.yaml.",
+		Description: "Extracts given jsonpath CATALOG_FIELD from Catalog.yaml, e.g. .Sepc.Version",
 		Arguments: []cli.Argument{
 			&cli.StringArg{
 				Name: "catalog-field",
@@ -47,13 +49,15 @@ func CatalogInfo(fieldName string) (string, error) {
 		return "", err
 	}
 
-	// very limited yet -- psuedo-"yq syntax" fails for eg. metadata.annotations.org.opencontainers.... :/
-	switch fieldName {
-	case "metadata.name":
-		return manifest.Metadata.Name, nil
-	case "spec.version":
-		return manifest.Spec.Version, nil
-	default:
-		return "", fmt.Errorf("only spec.version and metadata.name fields are supported")
+	tmpl, err := template.New("info").Parse("{{" + fieldName + "}}")
+	if err != nil {
+		return "", fmt.Errorf("parse template: %w", err)
 	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, manifest); err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
+	}
+
+	return buf.String(), nil
 }
