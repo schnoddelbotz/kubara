@@ -11,6 +11,7 @@ import (
 
 	"github.com/kubara-io/kubara/cmd/catalog"
 	"github.com/kubara-io/kubara/cmd/cluster"
+	"github.com/kubara-io/kubara/cmd/onboard"
 	"github.com/kubara-io/kubara/internal/k8s"
 	"github.com/kubara-io/kubara/internal/updatecheck"
 	"github.com/kubara-io/kubara/internal/utils"
@@ -71,6 +72,7 @@ func NewRootCmd(ver string) *cli.Command {
 			NewAgentsCmd(),
 			catalog.NewCatalogCommand(),
 			cluster.NewClusterCommand(),
+			onboard.NewOnboardCommand(),
 		},
 		Before: func(ctx context.Context, _ *cli.Command) (context.Context, error) {
 			if shouldNotifyStartupUpdate(globalFlags.ToRootOptions()) {
