@@ -111,7 +111,9 @@ func NewOnboardAppCommand() *cli.Command {
 				RepositoryPath: repoPath,
 			}
 
-			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
+			// FIXME - Must read existing, single file and extend bootstrapValues.applications list
+			// Templating wrong approach, must yaml decode and re-encode...
+			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-apps.yaml")
 			fileExists, _ := utils.FileExist(outFileName)
 			if fileExists {
 				return fmt.Errorf("refusing to overwrite existing overlay %q; manually remove it first", outFileName)
