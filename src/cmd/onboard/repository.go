@@ -10,9 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-//go:embed repository.tplt
-var repositoryTemplate string
-
 func NewOnboardRepositoryCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "repository",
@@ -84,7 +81,7 @@ func NewOnboardRepositoryCommand() *cli.Command {
 			repoUser := cmd.String("repository-user")
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-repository-"+repoName+".yaml")
-			return execTemplate(repositoryTemplate, outFileName, cmd.Bool("stdout"), templateData{
+			return execTemplate("repository.tplt", outFileName, cmd.Bool("stdout"), templateData{
 				Cluster:     cluster,
 				AppName:     repoName,
 				ProjectName: projectName,

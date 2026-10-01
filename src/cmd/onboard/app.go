@@ -10,11 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// for now/hack, embed templates -- might make more sense to have them in catalog (=use .FS?)?
-//
-//go:embed app.tplt
-var appTemplate string
-
 var allowedEngines = []string{"argo-cd"} // must match gitops engine component directory name
 
 func NewOnboardAppCommand() *cli.Command {
@@ -83,7 +78,7 @@ func NewOnboardAppCommand() *cli.Command {
 			}
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
-			return execTemplate(appTemplate, outFileName, cmd.Bool("stdout"), templateData{
+			return execTemplate("app.tplt", outFileName, cmd.Bool("stdout"), templateData{
 				Cluster:     cluster,
 				AppName:     appName,
 				ProjectName: projectName,

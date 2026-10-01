@@ -2,6 +2,7 @@ package onboard
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
+
+// TODO: Templates likely should live in catalog...?
+//
+//go:embed templates
+var templatesFS embed.FS
 
 type templateData struct {
 	Cluster     *config.Cluster
@@ -121,7 +127,7 @@ func getClusterByName(cmd *cli.Command, name string) (*config.Cluster, error) {
 }
 
 func execTemplate(tplt, outFileName string, toStdout bool, data templateData) error {
-	tmpl, err := template.New("app").Parse(tplt)
+	tmpl, err := template.ParseFS(templatesFS, filepath.Join("templates", tplt))
 	if err != nil {
 		return err
 	}

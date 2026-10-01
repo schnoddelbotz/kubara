@@ -10,9 +10,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-//go:embed project.tplt
-var projectTemplate string
-
 func NewOnboardProjectCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "project",
@@ -46,7 +43,7 @@ func NewOnboardProjectCommand() *cli.Command {
 			}
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-project-"+projectName+".yaml")
-			return execTemplate(projectTemplate, outFileName, cmd.Bool("stdout"), templateData{
+			return execTemplate("project.tplt", outFileName, cmd.Bool("stdout"), templateData{
 				Cluster:     cluster,
 				ProjectName: projectName,
 				Repository: Repository{
