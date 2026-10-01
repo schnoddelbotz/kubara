@@ -1,5 +1,6 @@
 
 # Add the following to your Argo CD overlay, typically platform-configs/<hub-cluster-name>/helm/argo-cd/values-additional.yaml.
+# See also https://github.com/kubara-io/kubara/blob/b9a872a2439464ef6da61f6fe263f81914c0b3e0/docs/content/4_building_your_platform/argocd-add-app-of-apps.md
 
 bootstrapValues:
     applications:

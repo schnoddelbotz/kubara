@@ -31,6 +31,15 @@ func NewOnboardCommand() *cli.Command {
 			NewOnboardProjectCommand(),
 			NewOnboardRepositoryCommand(),
 		},
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name: "engine",
+				Config: cli.StringConfig{
+					TrimSpace: true,
+				},
+				Value: "argo-cd",
+			},
+		},
 	}
 }
 
@@ -57,10 +66,12 @@ func getClusterByName(cmd *cli.Command, name string) (*config.Cluster, error) {
 
 	clusters := configStore.GetConfig().Clusters
 
-	for _, cluster := range clusters {
+	clusterNames := make([]string, len(clusters))
+	for idx, cluster := range clusters {
 		if cluster.Name == name {
 			return &cluster, nil
 		}
+		clusterNames[idx] = cluster.Name
 	}
-	return nil, fmt.Errorf("cluster %q not found in config", name)
+	return nil, fmt.Errorf("cluster %q not found in config; available: %v", name, clusterNames)
 }

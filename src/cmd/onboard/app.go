@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"text/template"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// for now/hack, embed templates -- might make more sense to have them in catalog?
+//
 //go:embed app.tplt
 var appTemplate string
 
@@ -33,13 +36,31 @@ func NewOnboardAppCommand() *cli.Command {
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name: "engine",
+				Name: "app-name",
 				Config: cli.StringConfig{
 					TrimSpace: true,
 				},
-				Value: "argo-cd",
+			},
+			&cli.StringFlag{
+				Name: "project-name",
+				Config: cli.StringConfig{
+					TrimSpace: true,
+				},
+			},
+			&cli.StringFlag{
+				Name: "repository-url",
+				Config: cli.StringConfig{
+					TrimSpace: true,
+				},
+			},
+			&cli.StringFlag{
+				Name: "repository-path",
+				Config: cli.StringConfig{
+					TrimSpace: true,
+				},
 			},
 		},
+
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			val := cmd.String("engine")
 			if !slices.Contains(allowedEngines, val) {
@@ -49,44 +70,58 @@ func NewOnboardAppCommand() *cli.Command {
 		},
 
 		Action: func(c context.Context, cmd *cli.Command) error {
-			// all parameters can be given as arguments
-			// if arguments are missing, get them interactively
-			//  - if project not given, run onboard project first
-			//  - if repository not given, run onboard repository first
-			//
 			engine := cmd.String("engine") // hmm. comes from config soon...?
-			// clusterName := cmd.StringArg("cluster-name")
-			// if len(clusterName) == 0 {
-			// 	cli.ShowSubcommandHelpAndExit(cmd, 1)
-			// }
+			clusterName := cmd.StringArg("cluster-name")
+			if len(clusterName) == 0 {
+				cli.ShowSubcommandHelpAndExit(cmd, 1)
+			}
 			cluster, err := getClusterByName(cmd, cmd.StringArg("cluster-name"))
 			if err != nil {
 				return err
 			}
+			log.Info().Msgf("Onboarding new app to cluster %q using engine %q", cluster.Name, engine)
 
-			log.Info().Msgf("Cluster %q: onboard app to %s ...", cluster.Name, engine)
+			appName := cmd.String("app-name")
+			if len(appName) == 0 {
+				return fmt.Errorf("missing required --app-name")
+			}
+			projectName := cmd.String("project-name")
+			if len(projectName) == 0 {
+				projectName = clusterName
+				log.Warn().Msgf("No --project-name given, using cluster's default project: %q", projectName)
+			}
+			repoURL := cmd.String("repository-url")
+			if len(repoURL) == 0 {
+				repoURL = cluster.ArgoCD.Repo.Git.Components.URL
+				log.Warn().Msgf("No --repository-url given, using cluster's components repo: %s", repoURL)
+			}
+			repoPath := cmd.String("repository-path")
+			if len(repoPath) == 0 {
+				return fmt.Errorf("missing required --repository-path")
+			}
 
 			tmpl, err := template.New("app").Parse(appTemplate)
 			if err != nil {
 				return err
 			}
-
 			data := templateData{
 				Cluster:        cluster,
-				AppName:        "myapp",
-				ProjectName:    cluster.Name, // by default, let override
-				RepositoryURL:  "https://foo",
-				RepositoryPath: "app-x",
+				AppName:        appName,
+				ProjectName:    projectName,
+				RepositoryURL:  repoURL,
+				RepositoryPath: repoPath,
 			}
 
-			return tmpl.Execute(os.Stdout, data)
+			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
+			log.Info().Msgf("Writing app overlay to: %s", outFileName)
 
-			// outputFile, err := os.Create("output.txt")
-			// if err != nil {
-			// 	panic(err)
-			// }
-			// defer outputFile.Close()
-			// return tmpl.Execute(outputFile, data)
+			// return tmpl.Execute(os.Stdout, data)
+			outputFile, err := os.Create(outFileName)
+			if err != nil {
+				return err
+			}
+			defer outputFile.Close()
+			return tmpl.Execute(outputFile, data)
 		},
 	}
 }
