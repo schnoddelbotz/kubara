@@ -9,6 +9,7 @@ import (
 	"slices"
 	"text/template"
 
+	"github.com/kubara-io/kubara/internal/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
@@ -18,7 +19,7 @@ import (
 //go:embed app.tplt
 var appTemplate string
 
-var allowedEngines = []string{"argo-cd"} // must match component directory name
+var allowedEngines = []string{"argo-cd"} // must match gitops engine component directory name
 
 func NewOnboardAppCommand() *cli.Command {
 	return &cli.Command{
@@ -60,7 +61,6 @@ func NewOnboardAppCommand() *cli.Command {
 				},
 			},
 		},
-
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			val := cmd.String("engine")
 			if !slices.Contains(allowedEngines, val) {
@@ -68,7 +68,6 @@ func NewOnboardAppCommand() *cli.Command {
 			}
 			return ctx, nil
 		},
-
 		Action: func(c context.Context, cmd *cli.Command) error {
 			engine := cmd.String("engine") // hmm. comes from config soon...?
 			clusterName := cmd.StringArg("cluster-name")
@@ -87,7 +86,7 @@ func NewOnboardAppCommand() *cli.Command {
 			}
 			projectName := cmd.String("project-name")
 			if len(projectName) == 0 {
-				projectName = clusterName
+				projectName = cluster.Name + "-" + cluster.Stage
 				log.Warn().Msgf("No --project-name given, using cluster's default project: %q", projectName)
 			}
 			repoURL := cmd.String("repository-url")
@@ -113,14 +112,17 @@ func NewOnboardAppCommand() *cli.Command {
 			}
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
+			fileExists, _ := utils.FileExist(outFileName)
+			if fileExists {
+				return fmt.Errorf("refusing to overwrite existing overlay %q; manually remove it first", outFileName)
+			}
 			log.Info().Msgf("Writing app overlay to: %s", outFileName)
 
-			// return tmpl.Execute(os.Stdout, data)
 			outputFile, err := os.Create(outFileName)
 			if err != nil {
 				return err
 			}
-			defer outputFile.Close()
+			defer func() { _ = outputFile.Close() }()
 			return tmpl.Execute(outputFile, data)
 		},
 	}
