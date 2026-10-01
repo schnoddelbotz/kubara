@@ -4,17 +4,13 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"path/filepath"
-	"slices"
-	"text/template"
 
-	"github.com/kubara-io/kubara/internal/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v3"
 )
 
-// for now/hack, embed templates -- might make more sense to have them in catalog?
+// for now/hack, embed templates -- might make more sense to have them in catalog (=use .FS?)?
 //
 //go:embed app.tplt
 var appTemplate string
@@ -43,12 +39,6 @@ func NewOnboardAppCommand() *cli.Command {
 				},
 			},
 			&cli.StringFlag{
-				Name: "project-name",
-				Config: cli.StringConfig{
-					TrimSpace: true,
-				},
-			},
-			&cli.StringFlag{
 				Name: "repository-url",
 				Config: cli.StringConfig{
 					TrimSpace: true,
@@ -60,13 +50,6 @@ func NewOnboardAppCommand() *cli.Command {
 					TrimSpace: true,
 				},
 			},
-		},
-		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			val := cmd.String("engine")
-			if !slices.Contains(allowedEngines, val) {
-				return ctx, fmt.Errorf("invalid value %q for --engine; must be one of %v", val, allowedEngines)
-			}
-			return ctx, nil
 		},
 		Action: func(c context.Context, cmd *cli.Command) error {
 			engine := cmd.String("engine") // hmm. comes from config soon...?
@@ -99,33 +82,16 @@ func NewOnboardAppCommand() *cli.Command {
 				return fmt.Errorf("missing required --repository-path")
 			}
 
-			tmpl, err := template.New("app").Parse(appTemplate)
-			if err != nil {
-				return err
-			}
-			data := templateData{
-				Cluster:        cluster,
-				AppName:        appName,
-				ProjectName:    projectName,
-				RepositoryURL:  repoURL,
-				RepositoryPath: repoPath,
-			}
-
-			// FIXME - Must read existing, single file and extend bootstrapValues.applications list
-			// Templating wrong approach, must yaml decode and re-encode...
-			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-apps.yaml")
-			fileExists, _ := utils.FileExist(outFileName)
-			if fileExists {
-				return fmt.Errorf("refusing to overwrite existing overlay %q; manually remove it first", outFileName)
-			}
-			log.Info().Msgf("Writing app overlay to: %s", outFileName)
-
-			outputFile, err := os.Create(outFileName)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = outputFile.Close() }()
-			return tmpl.Execute(outputFile, data)
+			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
+			return execTemplate(appTemplate, outFileName, cmd.Bool("stdout"), templateData{
+				Cluster:     cluster,
+				AppName:     appName,
+				ProjectName: projectName,
+				Repository: Repository{
+					URL:  repoURL,
+					Path: repoPath,
+				},
+			})
 		},
 	}
 }

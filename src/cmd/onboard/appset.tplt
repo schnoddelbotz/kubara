@@ -1,0 +1,19 @@
+
+bootstrapValues:
+  applicationSets:
+    {{ .AppSetName }}:
+      projectName: {{ .ProjectName }}
+      platformComponents:
+        repoURL: {{ .Repository.URL }}
+        path: platform-components/helm
+        targetRevision: main
+      platformConfigs:
+        repoURL: {{ .Repository.URL }} # CAN BE DIFFERENT
+        path: platform-configs
+        targetRevision: main
+      apps:
+        {{ .AppName }}:
+          name: {{ .AppName }}
+          path: platform-components/helm/{{ .AppName }}
+inClusterSecretLabels:
+  my-new-service: enabled

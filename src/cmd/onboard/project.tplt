@@ -1,11 +1,12 @@
 
-# Add the following to your Argo CD overlay, typically platform-configs/<hub-cluster-name>/helm/argo-cd/values-additional.yaml.
-
-projects:
-  - description: k8s-ske-spoke-0 project
-    name: k8s-spoke-0
-    namespace: argocd
-    # You can add as many allowed Repos in here as you like
-    # Must be added to Argo CD before
-    sourceRepos:
-      - registry.onstackit.cloud/stackit-edge-cloud-blueprint
+bootstrapValues:
+  projects:
+    {{ .ProjectName }}:
+      description: {{ .ProjectName }} project
+      name: {{ .ProjectName }}
+      namespace: argocd
+      # You can add as many allowed Repos in here as you like
+      # Must be added to Argo CD before
+      # FIXME: strip scheme + .git; quote * ?
+      sourceRepos:
+        - {{ .Repository.URL }}
