@@ -26,6 +26,7 @@ type templateData struct {
 	Repository  Repository
 	AppName     string
 	ProjectName string
+	Engine      string
 }
 
 type Repository struct {
@@ -48,6 +49,7 @@ func NewOnboardCommand() *cli.Command {
 		kubara onboard project homelab-jh --stdout --project-name fooproj
 		kubara onboard repository homelab-jh --stdout --repository-name foo --project-name fooproj
 		kubara onboard app homelab-jh --stdout --app-name foo-app --repository-path foo
+		kubara onboard app <tab> ... <tab>
 	*/
 	return &cli.Command{
 		Name:        "onboard",
@@ -92,7 +94,88 @@ func NewOnboardCommand() *cli.Command {
 	}
 }
 
+// shellComplete for onboard sub-commands. Use --generate-shell-completion to debug.
+func shellComplete(ctx context.Context, cmd *cli.Command) {
+	if cmd.NArg() > 0 {
+		// complete flag values
+		if len(os.Args) > 1 {
+			lastWord := os.Args[len(os.Args)-2]
+			switch lastWord {
+			case "--engine":
+				for _, e := range allowedEngines {
+					fmt.Println(e)
+				}
+				return
+			// cannot offer completion for these flags' values ...
+			// abort completion here to let user know custom value is required.
+			case "--app-name":
+				return
+			case "--project-name":
+				return
+			case "--repository-url":
+				return
+			case "--repository-name":
+				return
+			case "--repository-path":
+				return
+			}
+		}
+
+		// complete flags if first/required argument is provided.
+		// does not offer completion for flag values [yet] (e.g. --engine argo-cd).
+		var allFlags []cli.Flag
+		allFlags = append(allFlags, cmd.Flags...)
+		allFlags = append(allFlags, NewOnboardCommand().Flags...)
+		for _, flag := range allFlags {
+			isUsed := false
+			for _, name := range flag.Names() {
+				for _, arg := range os.Args {
+					if arg == "--"+name || arg == "-"+name {
+						isUsed = true
+						break
+					}
+				}
+				if isUsed {
+					break
+				}
+			}
+			usageText := ""
+			if vf, ok := flag.(interface{ GetUsage() string }); ok {
+				usageText = vf.GetUsage()
+			}
+			if !isUsed && len(flag.Names()) > 0 {
+				// fixme: fish only for now
+				fmt.Printf("--%s\t%s\n", flag.Names()[0], usageText)
+			}
+		}
+		return
+	}
+	// complete arg - cluster to apply onboarding command to, from config.yaml
+	clusters, err := getClusters(cmd)
+	if err != nil {
+		return
+	}
+	for _, cluster := range clusters {
+		fmt.Println(cluster.Name)
+	}
+}
+
 func getClusterByName(cmd *cli.Command, name string) (*config.Cluster, error) {
+	clusters, err := getClusters(cmd)
+	if err != nil {
+		return nil, err
+	}
+	clusterNames := make([]string, len(clusters))
+	for idx, cluster := range clusters {
+		if cluster.Name == name {
+			return &cluster, nil
+		}
+		clusterNames[idx] = cluster.Name
+	}
+	return nil, fmt.Errorf("cluster %q not found in config; available: %v", name, clusterNames)
+}
+
+func getClusters(cmd *cli.Command) ([]config.Cluster, error) {
 	// the code in here is stolen/duplicated from cluster/list.go
 	cwd, err := filepath.Abs(cmd.String("work-dir"))
 	if err != nil {
@@ -114,16 +197,7 @@ func getClusterByName(cmd *cli.Command, name string) (*config.Cluster, error) {
 		return nil, fmt.Errorf("config load: %w", err)
 	}
 
-	clusters := configStore.GetConfig().Clusters
-
-	clusterNames := make([]string, len(clusters))
-	for idx, cluster := range clusters {
-		if cluster.Name == name {
-			return &cluster, nil
-		}
-		clusterNames[idx] = cluster.Name
-	}
-	return nil, fmt.Errorf("cluster %q not found in config; available: %v", name, clusterNames)
+	return configStore.GetConfig().Clusters, nil
 }
 
 func execTemplate(tplt, outFileName string, toStdout bool, data templateData) error {

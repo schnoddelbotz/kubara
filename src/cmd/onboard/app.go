@@ -14,10 +14,11 @@ var allowedEngines = []string{"argo-cd"} // must match gitops engine component d
 
 func NewOnboardAppCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "app",
-		Usage:       "Add a new app to a cluster",
-		UsageText:   "kubara onboard app CLUSTER_NAME",
-		Description: "Adds a new application deployment to the GitOps engine",
+		Name:          "app",
+		Usage:         "Add a new app to a cluster",
+		UsageText:     "kubara onboard app CLUSTER_NAME",
+		Description:   "Adds a new application deployment to the GitOps engine",
+		ShellComplete: shellComplete,
 		Arguments: []cli.Argument{
 			&cli.StringArg{
 				Name: "cluster-name",
@@ -28,19 +29,22 @@ func NewOnboardAppCommand() *cli.Command {
 		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name: "app-name",
+				Name:  "app-name",
+				Usage: "GitOps engine application name",
 				Config: cli.StringConfig{
 					TrimSpace: true,
 				},
 			},
 			&cli.StringFlag{
-				Name: "repository-url",
+				Name:  "repository-url",
+				Usage: "Repository URL",
 				Config: cli.StringConfig{
 					TrimSpace: true,
 				},
 			},
 			&cli.StringFlag{
-				Name: "repository-path",
+				Name:  "repository-path",
+				Usage: "Relative path inside repository",
 				Config: cli.StringConfig{
 					TrimSpace: true,
 				},
@@ -77,6 +81,7 @@ func NewOnboardAppCommand() *cli.Command {
 				return fmt.Errorf("missing required --repository-path")
 			}
 
+			log.Printf("DBG %+v", cmd.FlagNames())
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-app-"+appName+".yaml")
 			return execTemplate("app.tplt", outFileName, cmd.Bool("stdout"), templateData{
 				Cluster:     cluster,

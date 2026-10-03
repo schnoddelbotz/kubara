@@ -7,6 +7,5 @@ bootstrapValues:
       namespace: argocd
       # You can add as many allowed Repos in here as you like
       # Must be added to Argo CD before
-      # FIXME: strip scheme + .git; quote * ?
       sourceRepos:
-        - {{ .Repository.URL }}
+        - "{{ .Repository.URL }}"

@@ -8,7 +8,7 @@ bootstrapValues:
       projectScope: {{ .ProjectName }}
       # # This points to the secret in vault
       remoteRef:
-        remoteKey: <cluster-name>/<stage>/repo_pat
+        remoteKey: {{ .Cluster.Name }}/{{ .Cluster.Stage }}/{{ .Engine }}/repo_pat_{{ .Repository.Name }}
         remoteKeyProperty: pat
       repoType: git
       secretStoreRef:

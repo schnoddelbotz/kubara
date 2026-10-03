@@ -12,10 +12,12 @@ import (
 
 func NewOnboardRepositoryCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "repository",
-		Usage:       "Add a new repository to a cluster's GitOps engine",
-		UsageText:   "kubara onboard repository CLUSTER_NAME",
-		Description: "Add a new repository to a cluster's GitOps engine",
+		Name:          "repository",
+		Aliases:       []string{"repo"},
+		Usage:         "Add a new repository to a cluster's GitOps engine",
+		UsageText:     "kubara onboard repository CLUSTER_NAME",
+		Description:   "Add a new repository to a cluster's GitOps engine",
+		ShellComplete: shellComplete,
 		Arguments: []cli.Argument{
 			&cli.StringArg{
 				Name: "cluster-name",
@@ -51,7 +53,6 @@ func NewOnboardRepositoryCommand() *cli.Command {
 				Value: "oauth2",
 			},
 		},
-
 		Action: func(c context.Context, cmd *cli.Command) error {
 			engine := cmd.String("engine") // hmm. comes from config soon...?
 			clusterName := cmd.StringArg("cluster-name")
@@ -82,8 +83,9 @@ func NewOnboardRepositoryCommand() *cli.Command {
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-repository-"+repoName+".yaml")
 			return execTemplate("repository.tplt", outFileName, cmd.Bool("stdout"), templateData{
-				Cluster:     cluster,
 				AppName:     repoName,
+				Cluster:     cluster,
+				Engine:      engine,
 				ProjectName: projectName,
 				Repository: Repository{
 					Name: repoName,

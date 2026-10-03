@@ -12,10 +12,11 @@ import (
 
 func NewOnboardProjectCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "project",
-		Usage:       "Add a new project to a cluster's GitOps engine",
-		UsageText:   "kubara onboard project CLUSTER_NAME",
-		Description: "Add a new project to a cluster's GitOps engine",
+		Name:          "project",
+		Usage:         "Add a new project to a cluster's GitOps engine",
+		UsageText:     "kubara onboard project CLUSTER_NAME",
+		Description:   "Add a new project to a cluster's GitOps engine",
+		ShellComplete: shellComplete,
 		Arguments: []cli.Argument{
 			&cli.StringArg{
 				Name: "cluster-name",
@@ -24,7 +25,6 @@ func NewOnboardProjectCommand() *cli.Command {
 				},
 			},
 		},
-
 		Action: func(c context.Context, cmd *cli.Command) error {
 			engine := cmd.String("engine") // hmm. comes from config soon...?
 			clusterName := cmd.StringArg("cluster-name")
@@ -41,14 +41,20 @@ func NewOnboardProjectCommand() *cli.Command {
 			if len(projectName) == 0 {
 				return fmt.Errorf("Missing required --project-name flag")
 			}
+			repoURL := cmd.String("repository-url")
+			if len(repoURL) == 0 {
+				// unsure about sane default here.
+				// using components repo unlikely, as the cluster's project already exists
+				// providing access to its repo.
+				repoURL = "*"
+				log.Warn().Msgf("No --repository-url given, using wildcard %q", repoURL)
+			}
 
 			outFileName := filepath.Join("platform-configs", clusterName, "helm", engine, "values-project-"+projectName+".yaml")
 			return execTemplate("project.tplt", outFileName, cmd.Bool("stdout"), templateData{
 				Cluster:     cluster,
 				ProjectName: projectName,
-				Repository: Repository{
-					URL: "*", // FIXME
-				},
+				Repository:  Repository{URL: repoURL},
 			})
 		},
 	}
